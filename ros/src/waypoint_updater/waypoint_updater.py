@@ -4,6 +4,8 @@ import rospy
 from geometry_msgs.msg import PoseStamped
 from styx_msgs.msg import Lane, Waypoint
 
+from tf.transformations import euler_from_quaternion
+
 import math
 
 '''
@@ -37,16 +39,28 @@ class WaypointUpdater(object):
         self.final_waypoints_pub = rospy.Publisher('final_waypoints', Lane, queue_size=1)
 
         # TODO: Add other member variables you need below
+        self.ego_x = None
+        self.ego_y = None
+        self.ego_z = None
+        self.ego_yaw = None
+        self.waypoints = None
+        self.closest_wp_index = None
 
-        rospy.spin()
+        #rospy.spin()
+        self.loop()
 
     def pose_cb(self, msg):
         # TODO: Implement
-        pass
+        self.ego_x = msg.pose.position.x
+        self.ego_y = msg.pose.position.y
+        self.ego_z = msg.pose.position.z
+        self.ego_yaw = self.get_yaw(msg.pose.orientation)
+        rospy.logwarn("WP_UPDATER: ego x=%f y=%f z=%f yaw=%f", self.ego_x, self.ego_y, self.ego_z, self.ego_yaw)
 
-    def waypoints_cb(self, waypoints):
+    def waypoints_cb(self, msg):
         # TODO: Implement
-        pass
+        self.waypoints = msg.waypoints
+        rospy.logwarn("WP_UPDATER: num_waypoints=%d", len(self.waypoints)) # 10902
 
     def traffic_cb(self, msg):
         # TODO: Callback for /traffic_waypoint message. Implement
@@ -56,6 +70,16 @@ class WaypointUpdater(object):
         # TODO: Callback for /obstacle_waypoint message. We will implement it later
         pass
 
+    def loop(self):
+        rospy.logwarn("WP_UPDATER loop started")
+        rate = rospy.Rate(10) # 50Hz
+        while not rospy.is_shutdown():
+            self.closest_wp_index = self.get_closest_wp_index(self, 0, len(self.waypoints)): 
+            #self.publish(throttle, brake, steer)
+            rate.sleep()
+
+
+    # --------------------------------------------------------------------------------
     def get_waypoint_velocity(self, waypoint):
         return waypoint.twist.twist.linear.x
 
@@ -69,6 +93,42 @@ class WaypointUpdater(object):
             dist += dl(waypoints[wp1].pose.pose.position, waypoints[i].pose.pose.position)
             wp1 = i
         return dist
+    # --------------------------------------------------------------------------------
+
+    def get_yaw(self, orientation_q):
+        orientation_list = [orientation_q.x, orientation_q.y, orientation_q.z, orientation_q.w]
+        roll, pitch, yaw = euler_from_quaternion (orientation_list)
+        # roll and pitch are always 0 anyways ...
+        return yaw
+
+    def get_closest_wp_index(self, wp1, wp2): 
+        closest_dist = 1e10
+        closest_index = -1
+        for i in range(wp1, wp2+1):
+            wp = waypoints[i]
+            wp_x = wp.pose.pose.position.x
+            wp_y = wp.pose.pose.position.y
+            wp_z = wp.pose.pose.position.z
+            dist = math.sqrt( (self.ego_x - wp_x)**2 + (self.ego_y - wp_y)**2 + (self.ego_z - wp_z)**2 )
+            if dist < closest_dist:
+                closest_dist = dist
+                closest_index = i
+        return closest_index
+
+    def transform_into_ego_coord(self, x, y):
+        # translation
+        x = x - self.ego_x
+        y = y - self.ego_x
+        # rotation(-yaw)
+        x =   x * math.cos(self.ego_yaw) + y * math.sin(self.ego_yaw)
+        y = - x * math.sin(self.ego_yaw) + y * math.cos(self.ego_yaw)
+        return x, y
+
+    def is_closest_wp_behind(self):
+        closest_wp = waypoints[self.closest_wp_index]
+        wp_x = wp.pose.pose.position.x
+        wp_y = wp.pose.pose.position.y
+        ego_coord_wp_x, ego_coord_wp_y = self.transform_into_ego_coord(wp_x, wp_y)
 
 
 if __name__ == '__main__':

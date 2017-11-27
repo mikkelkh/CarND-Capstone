@@ -1,0 +1,39 @@
+geometry_msgs/TwistStamped Message
+File: geometry_msgs/TwistStamped.msg
+# A twist with reference coordinate frame and timestamp
+Header header
+Twist twist
+
+Expanded Definition
+Header header
+    uint32 seq
+    time stamp
+    string frame_id
+Twist twist
+    geometry_msgs/Vector3 linear
+        float64 x
+        float64 y
+        float64 z
+    geometry_msgs/Vector3 angular
+        float64 x
+        float64 y
+        float64 z
+
+
+std_msgs/Bool Message
+File: std_msgs/Bool.msg
+Raw Message Definition
+bool data
+Compact Message Definition
+bool data
+
+geometry_msgs/Pose Message
+File: geometry_msgs/Pose.msg
+Raw Message Definition
+# A representation of pose in free space, composed of position and orientation. 
+Point position
+Quaternion orientation
+
+Compact Message Definition
+geometry_msgs/Point position
+geometry_msgs/Quaternion orientation

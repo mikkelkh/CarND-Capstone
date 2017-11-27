@@ -86,12 +86,13 @@ class DBWNode(object):
         num_waypoints = len(msg.waypoints)
         rospy.logwarn("num_waypoints=%d", num_waypoints) # 10902
         #for i in range(500,510):
-        for i in range(0,100):
+        for i in range(0,20):
             wp = msg.waypoints[i]
             x = wp.pose.pose.position.x
             y = wp.pose.pose.position.y
             z = wp.pose.pose.position.z
             yaw = self.get_yaw(wp.pose.pose.orientation)
+            theta_z = wp.twist.twist.angular.z
 
             # Note that the coordinates for linear velocity are vehicle-centered 
             # So only the x-direction linear velocity should be nonzero.
@@ -102,14 +103,14 @@ class DBWNode(object):
             #theta_x = wp.twist.twist.angular.x
             #theta_y = wp.twist.twist.angular.y
             #theta_z = wp.twist.twist.angular.z
-            rospy.logwarn("wp[%d] x=%f y=%f z=%f yaw=%f vx=%f", i, x, y, z, yaw, vx)
+            rospy.logwarn("wp[%d] x=%f y=%f z=%f yaw=%f theta_z=%f vx=%f", i, x, y, z, yaw, theta_z, vx)
 
     def current_pose_callback(self, msg):
         self.ego_x = msg.pose.position.x
         self.ego_y = msg.pose.position.y
         self.ego_z = msg.pose.position.z
         yaw = self.get_yaw(msg.pose.orientation)
-        rospy.logwarn("ego x=%f y=%f z=%f yaw=%f", self.ego_x, self.ego_y, self.ego_z, yaw)
+        #rospy.logwarn("ego x=%f y=%f z=%f yaw=%f", self.ego_x, self.ego_y, self.ego_z, yaw)
 
     def twist_cmd_callback(self, msg):
         self.proposed_velocity = msg.twist # linear and angular
