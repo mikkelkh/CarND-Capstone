@@ -43,12 +43,17 @@ class WaypointUpdater(object):
         self.ego_y = None
         self.ego_z = None
         self.ego_yaw = None
+        self.frame_id = None
+        self.msg_seq = 1
+
+        self.frame_id = None
         self.waypoints = None
         self.num_waypoints = None
         self.closest_wp_index = None
+        self.closest_wp_dist = None
 
-        rospy.spin()
-        #self.loop()
+        #rospy.spin()
+        self.loop()
 
     def pose_cb(self, msg):
         # TODO: Implement
@@ -56,7 +61,8 @@ class WaypointUpdater(object):
         self.ego_y = msg.pose.position.y
         self.ego_z = msg.pose.position.z
         self.ego_yaw = self.get_yaw(msg.pose.orientation)
-        rospy.logwarn("WP_UPDATER: ego x=%f y=%f z=%f yaw=%f", self.ego_x, self.ego_y, self.ego_z, self.ego_yaw)
+        self.frame_id = msg.header.frame_id
+        #rospy.logwarn("WP_UPDATER: ego x=%f y=%f z=%f yaw=%f", self.ego_x, self.ego_y, self.ego_z, self.ego_yaw)
 
     def waypoints_cb(self, msg):
         # TODO: Implement
@@ -79,18 +85,30 @@ class WaypointUpdater(object):
             if self.waypoints is not None and self.ego_x is not None:
                 if self.closest_wp_index is None:
                     wp_min = 0
-                    wp_max = self.num_waypoints
+                    wp_max = self.num_waypoints - 1
                     self.closest_wp_index = self.get_closest_wp_index(wp_min, wp_max) 
                 else:
-                    wp_min = self.closest_wp_index - 200
-                    wp_max = self.closest_wp_index + 200
+                    wp_min = self.closest_wp_index - LOOKAHEAD_WPS
+                    wp_max = self.closest_wp_index + LOOKAHEAD_WPS
                     if (wp_min < 0):
-                        wp_min += num_waypoints
-                    if (wp_max > num_waypoints):
-                        wp_min -= num_waypoints
+                        wp_min += self.num_waypoints
+                    if (wp_max > self.num_waypoints):
+                        wp_min -= self.num_waypoints
                     self.closest_wp_index = self.get_closest_wp_index(wp_min, wp_max) 
                 #self.publish(throttle, brake, steer)
-                rospy.logwarn("WP_UPDATER closest_wp_index=%d", self.closest_wp_index)
+                rospy.logwarn("WP_UPDATER closest_wp_index=%d closest_wp_dist=%f", self.closest_wp_index, self.closest_wp_dist)
+
+                final_waypoints = []
+                for i in range(LOOKAHEAD_WPS):
+                    final_waypoints.append(self.waypoints[ (self.closest_wp_index + i) % self.num_waypoints ])
+
+                lane_msg = Lane()
+                lane_msg.header.seq = self.msg_seq
+                lane_msg.header.frame_id = self.frame_id
+                lane_msg.header.stamp = rospy.Time.now()
+                lane_msg.waypoints = final_waypoints
+                self.final_waypoints_pub.publish(lane_msg)
+                self.msg_seq += 1
             rate.sleep()
 
 
@@ -121,11 +139,13 @@ class WaypointUpdater(object):
         x = x - self.ego_x
         y = y - self.ego_x
         # rotation(-yaw)
+        #  [ cos(-yaw)    -sin(-yaw) ] [ x ]
+        #  [ sin(-yaw)     cos(-yaw) ] [ y ]
         x =   x * math.cos(self.ego_yaw) + y * math.sin(self.ego_yaw)
         y = - x * math.sin(self.ego_yaw) + y * math.cos(self.ego_yaw)
         return x, y
 
-    def is_wp_behind_ego(wp_index):
+    def is_wp_behind_ego(self, wp_index):
         wp = self.waypoints[wp_index]
         wp_x = wp.pose.pose.position.x
         wp_y = wp.pose.pose.position.y
@@ -149,6 +169,8 @@ class WaypointUpdater(object):
                 closest_wp_index = i
         if self.is_wp_behind_ego(closest_wp_index) is True:
             closest_wp_index += 1
+
+        self.closest_wp_dist = closest_dist # just for logging / check purposes
         return closest_wp_index
 
 
