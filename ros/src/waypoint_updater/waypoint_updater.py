@@ -90,10 +90,6 @@ class WaypointUpdater(object):
                 else:
                     wp_min = self.closest_wp_index - LOOKAHEAD_WPS
                     wp_max = self.closest_wp_index + LOOKAHEAD_WPS
-                    if (wp_min < 0):
-                        wp_min += self.num_waypoints
-                    if (wp_max > self.num_waypoints):
-                        wp_min -= self.num_waypoints
                     self.closest_wp_index = self.get_closest_wp_index(wp_min, wp_max) 
                 #self.publish(throttle, brake, steer)
                 rospy.logwarn("WP_UPDATER closest_wp_index=%d closest_wp_dist=%f", self.closest_wp_index, self.closest_wp_dist)
@@ -159,7 +155,7 @@ class WaypointUpdater(object):
         closest_dist = 1e10
         closest_wp_index = -1
         for i in range(wp1, wp2+1):
-            wp = self.waypoints[i]
+            wp = self.waypoints[i % self.num_waypoints]
             wp_x = wp.pose.pose.position.x
             wp_y = wp.pose.pose.position.y
             wp_z = wp.pose.pose.position.z
@@ -169,6 +165,8 @@ class WaypointUpdater(object):
                 closest_wp_index = i
         if self.is_wp_behind_ego(closest_wp_index) is True:
             closest_wp_index += 1
+            if closest_wp_index == self.num_waypoints:
+                closest_wp_index = 0
 
         self.closest_wp_dist = closest_dist # just for logging / check purposes
         return closest_wp_index
