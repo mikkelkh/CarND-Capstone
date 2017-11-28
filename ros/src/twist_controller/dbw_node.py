@@ -7,6 +7,7 @@ from geometry_msgs.msg import TwistStamped, PoseStamped
 import math
 
 from twist_controller import Controller
+from yaw_controller import YawController
 
 from tf.transformations import euler_from_quaternion
 
@@ -51,6 +52,9 @@ class DBWNode(object):
         steer_ratio = rospy.get_param('~steer_ratio', 14.8)
         max_lat_accel = rospy.get_param('~max_lat_accel', 3.)
         max_steer_angle = rospy.get_param('~max_steer_angle', 8.)
+        min_speed = 0 # obviously ... or not ?
+
+        self.yaw_controller = YawController(wheel_base, steer_ratio, min_speed, max_lat_accel, max_steer_angle)
 
         self.steer_pub = rospy.Publisher('/vehicle/steering_cmd',
                                          SteeringCmd, queue_size=1)
@@ -63,8 +67,10 @@ class DBWNode(object):
         # self.controller = TwistController(<Arguments you wish to provide>)
 
         # TODO: Subscribe to all the topics you need to
-        self.current_velocity = None
-        self.proposed_velocity = None
+        self.current_linear_vel = None
+        self.current_angular_vel = None
+        self.proposed_linear_vel = None
+        self.proposed_angular_vel = None
         self.dbw_enabled = False
 
         self.sub1 = rospy.Subscriber("/twist_cmd", TwistStamped, self.twist_cmd_callback, queue_size=1)
@@ -113,10 +119,14 @@ class DBWNode(object):
         #rospy.logwarn("ego x=%f y=%f z=%f yaw=%f", self.ego_x, self.ego_y, self.ego_z, yaw)
 
     def twist_cmd_callback(self, msg):
-        self.proposed_velocity = msg.twist # linear and angular
+        # in [x, y] ego coord
+        self.proposed_linear_vel = msg.twist.linear.x
+        self.proposed_angular_vel = msg.twist.angular.z
 
     def current_velocity_callback(self, msg):
-        self.current_velocity = msg.twist # linear and angular
+        # in [x, y] ego coord
+        self.current_linear_vel = msg.twist.linear.x
+        self.current_angular_vel = msg.twist.angular.z
 
     def dbw_enabled_callback(self, msg):
         self.dbw_enabled = msg.data
@@ -135,9 +145,13 @@ class DBWNode(object):
             #                                                     <any other argument you need>)
             # if <dbw is enabled>:
             #   self.publish(throttle, brake, steer)
-            throttle, brake, steer = 1, 0, 0 # Just check if we can move the car ...
-            throttle, brake, steer = 1, 0, -0.02 # Just check if we can move the car ...
-            self.publish(throttle, brake, steer)
+            if self.dbw_enabled:
+                if self.proposed_angular_vel is not None and self.current_linear_vel is not None:
+                    steer = self.yaw_controller.get_steering(self.proposed_linear_vel, self.proposed_angular_vel, self.current_linear_vel)
+                else:
+                    steer = 0
+                throttle, brake = 1, 0 # Fast and Furious ...
+                self.publish(throttle, brake, steer)
             rate.sleep()
 
     def publish(self, throttle, brake, steer):
