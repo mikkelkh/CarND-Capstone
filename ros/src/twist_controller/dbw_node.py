@@ -6,12 +6,15 @@ from dbw_mkz_msgs.msg import ThrottleCmd, SteeringCmd, BrakeCmd, SteeringReport
 from geometry_msgs.msg import TwistStamped, PoseStamped
 import math
 
-from twist_controller import Controller
+#from twist_controller import Controller
 from yaw_controller import YawController
+from speed_controller import SpeedController
 
 from tf.transformations import euler_from_quaternion
 
 from styx_msgs.msg import Lane
+
+DBW_FREQUENCY = 50 # Hz
 
 '''
 You can build this node only after you have built (or partially built) the `waypoint_updater` node.
@@ -55,6 +58,7 @@ class DBWNode(object):
         min_speed = 0 # obviously ... or not ?
 
         self.yaw_controller = YawController(wheel_base, steer_ratio, min_speed, max_lat_accel, max_steer_angle)
+        self.speed_controller = SpeedController(wheel_radius, vehicle_mass, accel_limit, decel_limit, brake_deadband)
 
         self.steer_pub = rospy.Publisher('/vehicle/steering_cmd',
                                          SteeringCmd, queue_size=1)
@@ -133,7 +137,7 @@ class DBWNode(object):
 
     def loop(self):
         rospy.logwarn("DBWNode loop started")
-        rate = rospy.Rate(50) # 50Hz
+        rate = rospy.Rate(DBW_FREQUENCY) # 50Hz
         while not rospy.is_shutdown():
             # rospy.logwarn("DBWNode looping\n")
             # TODO: Get predicted throttle, brake, and steering using `twist_controller`
@@ -148,9 +152,10 @@ class DBWNode(object):
             if self.dbw_enabled:
                 if self.proposed_angular_vel is not None and self.current_linear_vel is not None:
                     steer = self.yaw_controller.get_steering(self.proposed_linear_vel, self.proposed_angular_vel, self.current_linear_vel)
+                    throttle, brake = self.speed_controller.get_throttle_brake(self.proposed_linear_vel, self.current_linear_vel, 1.0/DBW_FREQUENCY)
                 else:
-                    steer = 0
-                throttle, brake = 1, 0 # Fast and Furious ...
+                    throttle, brake, steer = 0., 0., 0.
+                #throttle, brake = 1, 0 # Fast and Furious ...
                 self.publish(throttle, brake, steer)
             rate.sleep()
 
