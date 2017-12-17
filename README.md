@@ -23,7 +23,7 @@ Sensors: 2 Velodyne VLP-16 LiDARs, 1 Delphi radar, 3 FLIR (Point Grey) Blackfly 
      <br>Carla.jpg
 </p>
 
-Udacity Self-Driving Car Harware Specs
+Udacity Self-Driving Car Hardware Specs
 - 31.4 GiB Memory
 - Intel Core i7-6700K CPU @ 4 GHz x 8
 - GPU TITAN X
@@ -70,21 +70,22 @@ https://medium.com/udacity/how-the-udacity-self-driving-car-works-575365270a40
 Three approaches have been considered:
 1) Use Traffic Light coordinates information and camera calibration data to extract bounding boxes around traffic lights and do a per bounding box Computer Vision colors HLS analysis to extract pixel information RED/YELLOW/GREEN. This is the approach used by Autoware.
 2) Use transfer Learning to train a RED/NOT RED classifier for the whole image.
-2) Use an object detector (like SSD or FASTER_RCNN) to extract bounding boxes around traffic lights and do a per bounding box Computer Vision colors HSV analysis to extract pixel information RED/NOT RED.
+3) Use an object detector (like SSD or FASTER_RCNN) to extract bounding boxes around traffic lights and do a per bounding box analysis: either with a pure Computer Vision approach (HSV colors analysis) or via a CNN traffic light classifier that has been trained specifically for this purpose (with images collected from simulator and rosbag files typically)
 
 The 1st approach is potentially very fast: no need for a Deep Neural network. Nevertheless it can only detect Traffic Lights that are part of an already knwon map.  So it lacks genericity. Moreover in the context of this project the camera calibration data was not provided by Udacity. So it was not applicable here.  
 
 The 2nd approach is a very classical one:
 - Start with a network like VGG, GoogleNet, SSD, FasterRCNN trained on a very big data set. Use it a s a powerfull front end in charge of features extraction.
 - Add a small back-end: train only the top-level of the network, the rest of the network remains fixed
-This approach is appropriate when the new dataset is small and similar to the original dataset. The higher-level features learned from the original dataset should transfer well to the new dataset. Nevertheless it requires a custom training based on a small dataset that has to be collected and prepared for training.
+This approach is appropriate when the new dataset is small and similar to the original dataset. The higher-level features learned from the original dataset should transfer well to the new dataset. It requires a custom training based on a small dataset that has to be collected and prepared for training.
 
-The 3rd approach is a mixture of the 2 first approaches eliminating the need for a custom training and that should generalize pretty well on new data.
-
+The 3rd approach is a mixture of the 2 first approaches.  
 
 The 3rd approach has been implemented:
 - faster_rcnn_inception_v2.pb from Tensorflow model zoo was chosen. It provided much better results out of the box than SSD; especially when dealing with small objects with traffic lights still far away. In terms of inference time on a GTX 1080 TI it is around 70 ms for a full image of size 1024x2048x3: so we could process more than 10 fps for Traffic Light detectionn which is more than enough.
-- Per detected Traffic Light bounding box (by FASTER_RCNN) pixel analysis is performed:
+- Per detected Traffic Light bounding box (by FASTER_RCNN) pixel analysis is performed: 
+
+Either via explicit pixels analysis
 
 ```python
     def select_lighton_real(self, img): # HLS for real
@@ -106,7 +107,52 @@ tl_img_real = self.select_lighton_real(tl_img) # SELECT LIGHT ON
 tl_img = (tl_img_simu + tl_img_real) / 2 # So it works with SIMU and REAL cases
 gray_tl_img = cv2.cvtColor(tl_img, cv2.COLOR_RGB2GRAY)     
 ```
-- Compute center of mass of RED/LIGHT-ON points: if center of mass is in the 1/3 upper part of the bounding box it is a RED traffic light. In the case of Udacity Traffic Lights, as RED and YELLOW are very similar, only the spatial location is different, this approach is quite effective and generalizes well. 
+Then we compute center of mass of RED/LIGHT-ON points: if center of mass is in the 1/3 upper part of the bounding box it is a RED traffic light. In the case of Udacity Traffic Lights, as RED and YELLOW are very similar, only the spatial location is different, this approach is quite effective and generalizes well. 
+
+or via a CNN traffic light classifier:
+
+```
+    def conv_net(x_dict, n_classes, dropout, reuse, is_training):
+        # Define a scope for reusing the variables
+        with tf.variable_scope('ConvNet', reuse=reuse):
+            # TF Estimator input is a dict, in case of multiple inputs
+            x = x_dict['x']
+            # Reshape to match picture format [Height x Width x Channel]
+            # Tensor input become 4-D: [Batch Size, Height, Width, Channel]
+            x = tf.reshape(x, shape=[-1, 90, 30, 3])
+            
+            # Normalize data per image (to better generalize to unseen data distributions)
+            x = tf.map_fn(lambda frame: tf.image.per_image_standardization(frame), x)
+            
+            # Convolution Layer with 32 filters and a kernel size of 5
+            conv1 = tf.layers.conv2d(x, 16, 3, activation=tf.nn.relu, ...)
+            # Max Pooling (down-sampling) with strides of 2 and kernel size of 2
+            conv1 = tf.layers.max_pooling2d(conv1, 2, 2)
+            
+            # Convolution Layer with 32 filters and a kernel size of 5
+            conv2 = tf.layers.conv2d(conv1, 32, 3, activation=tf.nn.relu, ...)
+            # Max Pooling (down-sampling) with strides of 2 and kernel size of 2
+            conv2 = tf.layers.max_pooling2d(conv2, 2, 2)
+    
+            # Convolution Layer with 64 filters and a kernel size of 3
+            conv3 = tf.layers.conv2d(conv2, 64, 3, activation=tf.nn.relu, ...)
+            # Max Pooling (down-sampling) with strides of 2 and kernel size of 2
+            conv3 = tf.layers.max_pooling2d(conv3, 2, 2)
+    
+            # Flatten the data to a 1-D vector for the fully connected layer
+            fc1 = tf.contrib.layers.flatten(conv3)
+    
+            # Fully connected layer (in tf contrib folder for now)
+            fc1 = tf.layers.dense(fc1, 1024, ...)
+            # Apply Dropout (if is_training is False, dropout is not applied)
+            fc1 = tf.layers.dropout(fc1, rate=dropout, training=is_training)
+    
+            # Output layer, class prediction
+            out = tf.layers.dense(fc1, n_classes)
+        return out
+```
+
+
 
   
 Below 2 examples are shown:
