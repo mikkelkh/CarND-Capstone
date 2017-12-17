@@ -134,21 +134,25 @@ class WaypointUpdater(object):
 #                    wp_max = self.closest_wp_index + LOOKAHEAD_WPS
 
                 self.closest_wp_index = self.get_closest_wp_index(wp_min, wp_max) 
-                planned_vel = self.get_waypoint_velocity(self.waypoints[self.closest_wp_index])
-                current_vel = self.current_velocity
-                rospy.logwarn("wp=%d error_dist=%f error_vel=%f", self.closest_wp_index, self.closest_wp_dist, current_vel - planned_vel)
 
-                final_waypoints = []
-                for i in range(LOOKAHEAD_WPS):
-                    final_waypoints.append(self.waypoints[ (self.closest_wp_index + i) % self.num_waypoints ])
+                # make sure the car does not move before tensorflow inits are done
+                # when tl_detector node is operational => traffic_wp_index is populated
+                if self.traffic_wp_index is not None:
+                    planned_vel = self.get_waypoint_velocity(self.waypoints[self.closest_wp_index])
+                    current_vel = self.current_velocity
+                    rospy.logwarn("wp=%d error_dist=%f error_vel=%f", self.closest_wp_index, self.closest_wp_dist, current_vel - planned_vel)
 
-                lane_msg = Lane()
-                lane_msg.header.seq = self.msg_seq
-                lane_msg.header.frame_id = self.frame_id
-                lane_msg.header.stamp = rospy.Time.now()
-                lane_msg.waypoints = final_waypoints
-                self.final_waypoints_pub.publish(lane_msg)
-                self.msg_seq += 1
+                    final_waypoints = []
+                    for i in range(LOOKAHEAD_WPS):
+                        final_waypoints.append(self.waypoints[ (self.closest_wp_index + i) % self.num_waypoints ])
+
+                    lane_msg = Lane()
+                    lane_msg.header.seq = self.msg_seq
+                    lane_msg.header.frame_id = self.frame_id
+                    lane_msg.header.stamp = rospy.Time.now()
+                    lane_msg.waypoints = final_waypoints
+                    self.final_waypoints_pub.publish(lane_msg)
+                    self.msg_seq += 1
             rate.sleep()
 
 
