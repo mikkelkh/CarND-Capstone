@@ -267,7 +267,7 @@ https://www.ri.cmu.edu/pub_files/2009/2/Automatic_Steering_Methods_for_Autonomou
 
 Some notes on testing and checking results with a rosbag file:  
   
-1) Download https://drive.google.com/open?id=0B2_h37bMVw3iT0ZEdlF4N01QbHc4  
+1) Download https://drive.google.com/open?id=0B2_h37bMVw3iT0ZEdlF4N01QbHc  
    you get a file: udacity_succesful_light_detection.bag  
 2) Rename the file to dbw_test.rosbag.bag  
 3) Move the dbw_test.rosbag.bag file to the project root’s data folder, e.g. CarND-Capstone/data/dbw_test.rosbag.bag  
