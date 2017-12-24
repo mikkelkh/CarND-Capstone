@@ -23,6 +23,10 @@ class WaypointLoader(object):
         self.pub = rospy.Publisher('/base_waypoints', Lane, queue_size=1, latch=True)
 
         self.velocity = self.kmph2mps(rospy.get_param('~velocity'))
+
+        if float(self.velocity) >= 20.0: # a little bit more conservative by default
+            self.velocity = float(self.velocity) * 0.9
+
         self.new_waypoint_loader(rospy.get_param('~path'))
         rospy.spin()
 
