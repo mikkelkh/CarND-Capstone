@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 import rospy
-from std_msgs.msg import Bool
+from std_msgs.msg import Bool, Int32
 from dbw_mkz_msgs.msg import ThrottleCmd, SteeringCmd, BrakeCmd, SteeringReport
 from geometry_msgs.msg import TwistStamped, PoseStamped
 import math
@@ -78,6 +78,7 @@ class DBWNode(object):
         self.proposed_linear_vel = None
         self.proposed_angular_vel = None
         self.dbw_enabled = False
+        self.gpu_ready = False
 
         self.sub1 = rospy.Subscriber("/twist_cmd", TwistStamped, self.twist_cmd_callback, queue_size=1)
         self.sub2 = rospy.Subscriber("/current_velocity", TwistStamped, self.current_velocity_callback, queue_size=1)
@@ -85,6 +86,7 @@ class DBWNode(object):
 
         self.sub4 = rospy.Subscriber("/current_pose", PoseStamped, self.current_pose_callback, queue_size=1)
         self.sub5 = rospy.Subscriber("/base_waypoints", Lane, self.base_waypoints_callback, queue_size=1)
+        self.sub6 = rospy.Subscriber("/gpu_ready", Int32, self.gpu_ready_callback, queue_size=1)
 
         self.loop()
 
@@ -132,6 +134,9 @@ class DBWNode(object):
         self.current_linear_vel = msg.twist.linear.x
         self.current_angular_vel = msg.twist.angular.z
 
+    def gpu_ready_callback(self, msg):
+        self.gpu_ready = True
+
     def dbw_enabled_callback(self, msg):
         self.dbw_enabled = msg.data
         rospy.logwarn("dbw_enabled=%d", self.dbw_enabled)
@@ -158,7 +163,10 @@ class DBWNode(object):
                 else:
                     throttle, brake, steer = 0., 0., 0.
                 #throttle, brake = 1, 0 # Fast and Furious ...
-                self.publish(throttle, brake, steer)
+                if self.gpu_ready:
+                    self.publish(throttle, brake, steer)
+                else:
+                    self.publish(0.0, 0.25, 0.0)
             rate.sleep()
 
     def publish(self, throttle, brake, steer):

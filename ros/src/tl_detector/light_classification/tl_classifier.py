@@ -179,7 +179,7 @@ class TLClassifier(object):
 
             if output_dict['classes'][0]=='red':
                 text = "RED LIGHT score=%.3f" % score
-                cv2.putText(image_np, text, (int(left), int(bot)), cv2.FONT_HERSHEY_SIMPLEX, 1, (0,0,255), 2, lineType=cv2.LINE_AA)
+                cv2.putText(image_np, text, (int(left), int(bot)), cv2.FONT_HERSHEY_SIMPLEX, 1, (0,0,255), 2)
                 return image_np, True
               # if normalized center of mass of RED points 
 #              # is in the upper part of detected Traffic Light Box
@@ -187,7 +187,7 @@ class TLClassifier(object):
 #              if npoints > 10 and mean_row < 0.33:
 #                  text = "RED LIGHT score=%.3f" % score
 #                  cv2.putText(image_np, text, (int(left), int(bot)), cv2.FONT_HERSHEY_SIMPLEX, 
-#                                               1, (0,0,255), 2, lineType=cv2.LINE_AA)
+#                                               1, (0,0,255), 2)
 #                  return image_np, True
         return image_np, False    
     
@@ -232,8 +232,7 @@ class TLClassifier(object):
               # THEN it is a RED traffic light
               if npoints > 10 and mean_row < 0.33:
                   text = "RED LIGHT score=%.3f" % score
-                  cv2.putText(image_np, text, (int(left), int(bot)), cv2.FONT_HERSHEY_SIMPLEX, 
-                                               1, (0,0,255), 2, lineType=cv2.LINE_AA)
+                  cv2.putText(image_np, text, (int(left), int(bot)), cv2.FONT_HERSHEY_SIMPLEX, 1, (0,0,255), 2)
                   return image_np, True
         return image_np, False
 
