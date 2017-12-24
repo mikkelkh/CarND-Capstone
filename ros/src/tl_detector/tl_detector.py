@@ -77,16 +77,18 @@ class TLDetector(object):
         sub2 = rospy.Subscriber('/base_waypoints', Lane, self.waypoints_cb)
         sub3 = rospy.Subscriber('/vehicle/traffic_lights', TrafficLightArray, self.traffic_cb)
         self.upcoming_red_light_pub = rospy.Publisher('/traffic_waypoint', Int32, queue_size=1)
-
+        self.gpu_ready_pub = rospy.Publisher('/gpu_ready', Int32, queue_size=1)
 
         # Philippe
 #        sub6 = rospy.Subscriber('/image_color', Image, self.image_callback)
 #        self.light_classifier = TLClassifier(deep_learning=False)
+#        self.gpu_ready_pub.publish(Int32(1))
 #        self.loop()
 
         # Peter and Mikkel
         sub6 = rospy.Subscriber('/image_color', Image, self.image_callback)
         self.light_classifier = TLClassifier(deep_learning=True)
+        self.gpu_ready_pub.publish(Int32(1))
         self.loop2()
 
     # -----------------------------------------------------------------------------------
