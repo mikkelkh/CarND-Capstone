@@ -61,14 +61,15 @@ class TLClassifier(object):
         self.deep_learning = deep_learning
         
         # Load traffic light classifier
-        self.classifier = MODEL_DIR + CLASSIFIER
-        graph_file = os.path.join(self.classifier,'saved_model.pb')
-        tf.saved_model.loader.load(self.sess, [tf.saved_model.tag_constants.SERVING], self.classifier)        
-        self.predictor = tf.contrib.predictor.from_saved_model(self.classifier)
+        if deep_learning:
+            self.classifier = MODEL_DIR + CLASSIFIER
+            graph_file = os.path.join(self.classifier,'saved_model.pb')
+            tf.saved_model.loader.load(self.sess, [tf.saved_model.tag_constants.SERVING], self.classifier)        
+            self.predictor = tf.contrib.predictor.from_saved_model(self.classifier)
         
         # the very first decoding is slow: al inits are done
         # => do that in advance before real decoding
-        for i in range(2):
+        for i in range(1):
             #test_image = cv2.imread('light_classification/img/left0144.jpg')
             test_image = cv2.imread(IMG_DIR + 'left0144.jpg')
             
@@ -83,11 +84,12 @@ class TLClassifier(object):
                 print("Traditional classifier: NOT RED")
                 
             # Deep learning traffic light classifier
-            pred_image, is_red = self.classify_tl_cnn(image_np, box_coords, classes, scores)
-            if is_red:
-                print("Deep learning classifier: RED")
-            else:
-                print("Deep learning classifier: NOT RED")                
+            if deep_learning:
+                pred_image, is_red = self.classify_tl_cnn(image_np, box_coords, classes, scores)
+                if is_red:
+                    print("Deep learning classifier: RED")
+                else:
+                    print("Deep learning classifier: NOT RED")                
             
             #cv2.imwrite("light_classification/img/pred_image.png", pred_image)
             cv2.imwrite(IMG_DIR + 'pred_image.png', pred_image)
@@ -101,7 +103,10 @@ class TLClassifier(object):
         return tf.train.Feature(float_list=tf.train.FloatList(value=value))    
 
     def load_graph(self, graph_file, use_xla=False):
-        config = tf.ConfigProto()
+        #config = tf.ConfigProto()
+        config = tf.ConfigProto(log_device_placement=False)
+        config.gpu_options.allow_growth = True
+        config.gpu_options.per_process_gpu_memory_fraction = 0.9
         if use_xla:
             jit_level = tf.OptimizerOptions.ON_1
             config.graph_options.optimizer_options.global_jit_level = jit_level

@@ -80,16 +80,16 @@ class TLDetector(object):
         self.gpu_ready_pub = rospy.Publisher('/gpu_ready', Int32, queue_size=1)
 
         # Philippe
-#        sub6 = rospy.Subscriber('/image_color', Image, self.image_callback)
-#        self.light_classifier = TLClassifier(deep_learning=False)
-#        self.gpu_ready_pub.publish(Int32(1))
-#        self.loop()
+        sub6 = rospy.Subscriber('/image_color', Image, self.image_callback)
+        self.light_classifier = TLClassifier(deep_learning=False)
+        self.gpu_ready_pub.publish(Int32(1))
+        self.loop()
 
         # Peter and Mikkel
-        sub6 = rospy.Subscriber('/image_color', Image, self.image_callback)
-        self.light_classifier = TLClassifier(deep_learning=True)
-        self.gpu_ready_pub.publish(Int32(1))
-        self.loop2()
+        #sub6 = rospy.Subscriber('/image_color', Image, self.image_callback)
+        #self.light_classifier = TLClassifier(deep_learning=True)
+        #self.gpu_ready_pub.publish(Int32(1))
+        #self.loop2()
 
     # -----------------------------------------------------------------------------------
 
