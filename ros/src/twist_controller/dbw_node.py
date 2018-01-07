@@ -166,7 +166,9 @@ class DBWNode(object):
                 if self.gpu_ready:
                     self.publish(throttle, brake, steer)
                 else:
-                    self.publish(0.0, 0.25, 0.0)
+                    # just steer: it is more of a psychological change ...
+                    # so that passengers/passive drivers can see dbw is up and running
+                    self.publish(0.0, 0.25, steer)
             rate.sleep()
 
     def publish(self, throttle, brake, steer):
