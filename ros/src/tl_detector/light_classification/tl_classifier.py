@@ -36,7 +36,13 @@ class TLClassifier(object):
         if not os.path.exists(DEBUG_DIR):
             os.makedirs(DEBUG_DIR)
         #rospy.logwarn("%s", os.getcwd())
-        self.detector = MODEL_DIR + 'faster_rcnn_inception_v2.pb'
+        #self.detector = MODEL_DIR + 'faster_rcnn_inception_v2.pb'
+        #self.detector = MODEL_DIR + 'ssd_inception_v2.pb'
+
+        # Use SSD mobilenet: smaller model, 2x faster to load
+        # So this significantly reduces the TF init time
+        # which is becoming critical with the live tests are done
+        self.detector = MODEL_DIR + 'ssd_mobilenet_v1.pb'
         rospy.logwarn("----------------------------------------------------------------------------------")
         rospy.logwarn("With SIMULATOR: use lowest screen resolution 640x480 with Graphics Quality FASTEST")
         rospy.logwarn("With SIMULATOR: so that the GPU is mainly dedicated to running object detection")
@@ -71,7 +77,7 @@ class TLClassifier(object):
         # => do that in advance before real decoding
         for i in range(1):
             #test_image = cv2.imread('light_classification/img/left0144.jpg')
-            test_image = cv2.imread(IMG_DIR + 'left0144.jpg')
+            test_image = cv2.imread(IMG_DIR + 'image64.png')
             
 #            pred_image, is_red = self.detect_tl(test_image)
             image_np, box_coords, classes, scores = self.detect_tl(test_image)
@@ -106,7 +112,8 @@ class TLClassifier(object):
         #config = tf.ConfigProto()
         config = tf.ConfigProto(log_device_placement=False)
         config.gpu_options.allow_growth = True
-        config.gpu_options.per_process_gpu_memory_fraction = 0.9
+        #config.gpu_options.per_process_gpu_memory_fraction = 0.2
+        session = tf.Session(config=config)
         if use_xla:
             jit_level = tf.OptimizerOptions.ON_1
             config.graph_options.optimizer_options.global_jit_level = jit_level
@@ -148,6 +155,7 @@ class TLClassifier(object):
         box_coords[:, 3] = boxes[:, 3] * width
         return box_coords
     
+    # To be used with a camera without polarization filter
     def select_lighton_real(self, img): # HLS for real
         """Applies color selection for high L and S """
         hls_img = cv2.cvtColor(img, cv2.COLOR_RGB2HLS)
@@ -155,6 +163,13 @@ class TLClassifier(object):
         upper = np.array([ 100, 255, 255], dtype="uint8")
         tl_mask = cv2.inRange(hls_img, lower, upper)
         return cv2.bitwise_and(img, img, mask = tl_mask)
+
+    # To be used with a camera + polarization filter
+    def select_white_real(self, img): # WHITE for real camera _BUT_ with polarization filter
+        lower = np.array([ 253,   253, 253], dtype="uint8")
+        upper = np.array([ 255, 255, 255], dtype="uint8")
+        red_mask = cv2.inRange(img, lower, upper)
+        return cv2.bitwise_and(img, img, mask = red_mask)
     
     def select_red_simu(self, img): # BGR for simu
         lower = np.array([ 0,   0, 200], dtype="uint8")
@@ -211,7 +226,8 @@ class TLClassifier(object):
             tl_img = image_np[int(bot):int(top), int(left):int(right)]
 
             tl_img_simu = self.select_red_simu(tl_img) # SELECT RED
-            tl_img_real = self.select_lighton_real(tl_img) # SELECT TL
+            #tl_img_real = self.select_lighton_real(tl_img) # SELECT TL
+            tl_img_real = self.select_white_real(tl_img) # SELECT TL with polarization filter
             tl_img = (tl_img_simu + tl_img_real) / 2
 
             gray_tl_img = cv2.cvtColor(tl_img, cv2.COLOR_RGB2GRAY)
@@ -255,7 +271,10 @@ class TLClassifier(object):
         scores = np.squeeze(scores)
         classes = np.squeeze(classes)
     
-        confidence_cutoff = 0.8
+        # confidence_cutoff = 0.8
+        # lower the cutoff threshold for SSD vs FASTER RCNN
+        # And then let the RED/NOT RED classifier remove false positive
+        confidence_cutoff = 0.05
         
         # Filter traffic light boxes with a confidence score less than `confidence_cutoff`
         boxes, scores, classes = self.filter_boxes(confidence_cutoff, boxes, scores, classes, keep_classes=[CLASS_TRAFFIC_LIGHT])
