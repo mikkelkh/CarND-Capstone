@@ -153,22 +153,21 @@ class DBWNode(object):
             #                                                     <any other argument you need>)
             # if <dbw is enabled>:
             #   self.publish(throttle, brake, steer)
-            if self.dbw_enabled:
-                if self.proposed_angular_vel is not None and self.current_linear_vel is not None:
-                    if self.carla_low_speed_test:
-                        steer = self.proposed_angular_vel * self.steer_ratio # DBW_TEST
-                    else:
-                        steer = self.yaw_controller.get_steering(self.proposed_linear_vel, self.proposed_angular_vel, self.current_linear_vel)
-                    throttle, brake = self.speed_controller.get_throttle_brake(self.proposed_linear_vel, self.current_linear_vel, 1.0/DBW_FREQUENCY)
+            if self.proposed_angular_vel is not None and self.current_linear_vel is not None:
+                if self.carla_low_speed_test:
+                    steer = self.proposed_angular_vel * self.steer_ratio # DBW_TEST
                 else:
-                    throttle, brake, steer = 0., 0., 0.
-                #throttle, brake = 1, 0 # Fast and Furious ...
-                if self.gpu_ready:
-                    self.publish(throttle, brake, steer)
-                else:
-                    # just steer: it is more of a psychological change ...
-                    # so that passengers/passive drivers can see dbw is up and running
-                    self.publish(0.0, 0.25, steer)
+                    steer = self.yaw_controller.get_steering(self.proposed_linear_vel, self.proposed_angular_vel, self.current_linear_vel)
+                throttle, brake = self.speed_controller.get_throttle_brake(self.proposed_linear_vel, self.current_linear_vel, 1.0/DBW_FREQUENCY)
+            else:
+                throttle, brake, steer = 0., 0., 0.
+
+            if not self.gpu_ready:
+                # fake non 0 commands while GPU is not ready but with braking
+                throttle, brake, steer = 0.01, 0.25, steer 
+
+            self.publish(throttle, brake, steer)
+            rospy.logwarn("throttle=%f brake=%f steer=%f", throttle, brake, steer) 
             rate.sleep()
 
     def publish(self, throttle, brake, steer):
