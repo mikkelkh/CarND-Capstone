@@ -1,3 +1,5 @@
+
+
 This is the project repo for the final project of the Udacity Self-Driving Car Nanodegree: Programming a Real Self-Driving Car. For more information about the project, see the project introduction [here](https://classroom.udacity.com/nanodegrees/nd013/parts/6047fe34-d93c-4f50-8336-b70ef10cb4b2/modules/e1a23b06-329a-4684-a717-ad476f0d8dff/lessons/462c933d-9f24-42d3-8bdc-a08a5fc866e4/concepts/5ab4b122-83e6-436d-850f-9f4d26627fd9).
 
 ### Members of Powerthrough Team
@@ -12,6 +14,21 @@ This is the project repo for the final project of the Udacity Self-Driving Car N
      <img src="./imgs/rosbag-play.gif" alt="pipeline" width="100%" height="100%">
      <br>rosbag-play.gif
 </p>
+
+### Important note
+
+When loading a protobuf with Tensorflow please make sure to read this:   
+https://www.tensorflow.org/install/install_linux#python_36    
+  
+The TensorFlow pip package depends on protobuf pip package version 3.1. The protobuf pip package downloaded from PyPI (when invoking pip install protobuf) is a Python-only library containing Python implementations of proto serialization/deserialization that can run 10x-50x slower than the C++ implementation.
+
+Protobuf also supports a binary extension for the Python package that contains fast C++ based proto parsing. This extension is not available in the standard Python-only pip package. We have created a custom binary pip package for protobuf that contains the binary extension. To install the custom binary protobuf pip package, invoke one of the following commands:
+
+    for Python 2.7:
+
+  $ pip install --upgrade \
+  https://storage.googleapis.com/tensorflow/linux/cpu/protobuf-3.1.0-cp27-none-linux_x86_64.whl
+
 
 ### Carla Self-Driving Car
 
