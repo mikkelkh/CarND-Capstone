@@ -42,7 +42,9 @@ class TLClassifier(object):
         # Use SSD mobilenet: smaller model, 2x faster to load
         # So this significantly reduces the TF init time
         # which is becoming critical with the live tests are done
-        self.detector = MODEL_DIR + 'ssd_mobilenet_v1.pb'
+        #self.detector = MODEL_DIR + 'ssd_mobilenet_v1.pb'
+        #self.detector = MODEL_DIR + 'ssd_inception_v2.pb'
+        self.detector = MODEL_DIR + 'faster_rcnn_inception_v2.pb'
         rospy.logwarn("----------------------------------------------------------------------------------")
         rospy.logwarn("With SIMULATOR: use lowest screen resolution 640x480 with Graphics Quality FASTEST")
         rospy.logwarn("With SIMULATOR: so that the GPU is mainly dedicated to running object detection")
@@ -226,8 +228,8 @@ class TLClassifier(object):
             tl_img = image_np[int(bot):int(top), int(left):int(right)]
 
             tl_img_simu = self.select_red_simu(tl_img) # SELECT RED
-            #tl_img_real = self.select_lighton_real(tl_img) # SELECT TL
-            tl_img_real = self.select_white_real(tl_img) # SELECT TL with polarization filter
+            tl_img_real = self.select_lighton_real(tl_img) # SELECT TL
+            #tl_img_real_filter = self.select_white_real(tl_img) # SELECT TL with polarization filter
             tl_img = (tl_img_simu + tl_img_real) / 2
 
             gray_tl_img = cv2.cvtColor(tl_img, cv2.COLOR_RGB2GRAY)
@@ -271,10 +273,7 @@ class TLClassifier(object):
         scores = np.squeeze(scores)
         classes = np.squeeze(classes)
     
-        # confidence_cutoff = 0.8
-        # lower the cutoff threshold for SSD vs FASTER RCNN
-        # And then let the RED/NOT RED classifier remove false positive
-        confidence_cutoff = 0.05
+        confidence_cutoff = 0.8
         
         # Filter traffic light boxes with a confidence score less than `confidence_cutoff`
         boxes, scores, classes = self.filter_boxes(confidence_cutoff, boxes, scores, classes, keep_classes=[CLASS_TRAFFIC_LIGHT])
