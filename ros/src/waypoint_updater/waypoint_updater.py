@@ -91,7 +91,7 @@ class WaypointUpdater(object):
         # TODO: Callback for /traffic_waypoint message. Implement
 
         # If first detection of red light => compute slow down path
-        if msg.data > 0 and msg.data != self.traffic_wp_index: 
+        if msg.data > 0 and msg.data != self.traffic_wp_index and self.closest_wp_index is not None: 
             closest_wp_index = self.closest_wp_index
             #closest_wp_index = max(closest_wp_index, traffic_wp_index - 75)
 
